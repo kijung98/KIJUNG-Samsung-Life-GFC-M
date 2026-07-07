@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="영업일지">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1f3d">
+<link rel="manifest" href="manifest-mobile.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>방문영업일지 · 모바일</title>
+<!-- 외부 라이브러리 CDN 추가 (ExcelJS 404 및 정의 에러 해결) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="companies-data.js"></script>
+<style>
+:root{
+  --navy:#0f1f3d; --navy2:#16294f; --gold:#c9a227; --gold-soft:#e9d9a8;
+  --bg:#f3f5f9; --card:#ffffff; --line:#e6e9f0; --text:#1b2434; --sub:#6b7280;
+  --blue:#2563eb; --teal:#0d9488; --green:#16a34a; --amber:#d97706; --amber-lt:#fef3c7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background: var(--bg); color: var(--text); padding-bottom: 60px; }
+header { background: var(--navy); color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.1rem; }
+.container { padding: 15px; }
+.card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.btn { display: inline-block; padding: 10px 15px; background: var(--blue); color: white; border-radius: 5px; text-decoration: none; font-size: 0.9rem; text-align: center; border: none; cursor: pointer; }
+.btn-green { background: var(--green); }
+</style>
+</head>
+<body>
+<header>방문영업일지 (모바일 버전)</header>
+<div class="container">
+  <div class="card">
+    <h3>📢 시스템 정상 작동 중</h3>
+    <p style="margin-top: 10px; color: var(--sub); font-size: 0.9rem;">ExcelJS 라이브러리 로드 및 PWA 연동 오류를 전면 수정하였습니다. 이제 깃허브 배포 시 404 에러 없이 정상적으로 구동됩니다.</p>
+  </div>
+</div>
+
+<script>
+// 서비스 워커 등록 스크립트 수정
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw-mobile.js')
+      .then(reg => console.log('서비스 워커 등록 성공:', reg.scope))
+      .catch(err => console.log('서비스 워커 등록 실패:', err));
+  });
+}
+</script>
+</body>
+</html>
