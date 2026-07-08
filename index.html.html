@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="영업일지">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1f3d">
+<link rel="manifest" href="manifest-mobile.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>방문영업일지 · 모바일</title>
+
+<!-- ExcelJS 라이브러리 (정확한 CDN) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<!-- 기초 데이터 파일 -->
+<script src="companies-data.js"></script>
+
+<style>
+:root {
+  --navy: #0f1f3d;
+  --navy-light: #1e293b;
+  --gold: #c9a227;
+  --gold-soft: #fef3c7;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --line: #e2e8f0;
+  --text: #0f172a;
+  --sub: #64748b;
+  --blue: #2563eb;
+  --green: #10b981;
+  --danger: #ef4444;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background: var(--bg); color: var(--text); padding-bottom: 75px; font-size: 14px; }
+
+/* 헤더 및 요약 */
+header { background: var(--navy); color: white; padding: 15px; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.header-title { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.1rem; }
+.header-date { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+
+/* 탭 네비게이션 (하단 고정) */
+.nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--line); display: flex; height: 60px; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--sub); text-decoration: none; font-size: 0.75rem; cursor: pointer; }
+.nav-item.active { color: var(--blue); font-weight: bold; }
+.nav-item span { font-size: 1.3rem; margin-bottom: 2px; }
+
+/* 스크린 영역 */
+.screen { display: none; padding: 15px; }
+.screen.active { display: block; }
+
+/* 검색 및 필터 */
+.search-container { background: white; border-radius: 8px; padding: 10px; margin-bottom: 15px; border: 1px solid var(--line); }
+.search-input { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 0.95rem; margin-bottom: 8px; outline: none; }
+.search-input:focus { border-color: var(--blue); }
+.filter-row { display: flex; gap: 8px; }
+.filter-select { flex: 1; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: 0.85rem; }
+
+/* 카드 스타일 */
+.card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.company-title { font-size: 1.05rem; font-weight: bold; color: var(--navy); }
+.badge { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.badge-blue { background: #eff6ff; color: var(--blue); }
+.badge-gray { background: #f1f5f9; color: var(--sub); }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.85rem; color: #475569; margin: 8px 0; }
+.address-text { font-size: 0.8rem; color: var(--sub); background: #f8fafc; padding: 6px; border-radius: 4px; margin-top: 6px; word-break: keep-all; }
+
+/* 버튼 */
+.btn-group { display: flex; gap: 8px; margin-top: 12px; }
+.btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.85rem; text-align: center; text-decoration: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.btn-primary { background: var(--blue); color: white; }
+.btn-success { background: var(--green); color: white; }
+.btn-outline { background: white; border: 1px solid var(--line); color: var(--text); }
+.btn-danger { background: var(--danger); color: white; }
+
+/* 모달 양식 */
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: flex-end; }
+.modal-content { background: white; width: 100%; max-height: 85vh; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px; overflow-y: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+.modal-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--navy); }
+.form-group { margin-bottom: 12px; }
+.form-label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; color: var(--navy-light); }
+.form-control { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 0.95rem; outline: none; }
+.form-control:focus { border-color: var(--blue); }
+
+/* 일지 리스트 */
+.log-item { border-left: 3px solid var(--blue); padding-left: 10px; margin-bottom: 15px; }
+.log-date { font-size: 0.8rem; color: var(--sub); font-weight: bold; }
+.log-company { font-weight: bold; font-size: 0.95rem; margin: 2px 0; }
+.log-memo { color: #334155; font-size: 0.9rem; margin-top: 4px; background: #f1f5f9; padding: 8px; border-radius: 4px; }
+
+/* 토스트 알림 */
+#toast { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); color: white; padding: 10px 20px; border-radius: 20px; z-index: 1000; font-size: 0.85rem; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <span>💼 스마트 방문영업일지</span>
+    <span id="totalCount" style="font-size: 0.85rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px;">0개</span>
+  </div>
+  <div class="header-date" id="todayStr">7월 7일 화요일</div>
+</header>
+
+<!-- 1. 업체조회 스크린 -->
+<div id="screen-companies" class="screen active">
+  <div class="search-container">
+    <input type="search" id="searchInput" class="search-input" placeholder="기업명, 대표자, 주소 검색...">
+    <div class="filter-row">
+      <select id="zoneFilter" class="filter-select">
+        <option value="">모든 구역</option>
+      </select>
+      <select id="sizeFilter" class="filter-select">
+        <option value="">모든 규모</option>
+        <option value="중기업">중기업</option>
+        <option value="소기업">소기업</option>
+        <option value="소상공인">소상공인</option>
+      </select>
+    </div>
+  </div>
+  <div id="companyList"></div>
+</div>
+
+<!-- 2. 영업일지 스크린 -->
+<div id="screen-logs" class="screen">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+    <h2 style="font-size:1.1rem; font-weight:bold;">📝 작성된 방문 일지</h2>
+    <button class="btn btn-outline" style="padding:4px 10px; font-size:0.8rem;" onclick="exportLogsToExcel()">📥 엑셀 내보내기</button>
+  </div>
+  <div id="logList"></div>
+</div>
+
+<!-- 3. 데이터관리 스크린 -->
+<div id="screen-settings" class="screen">
+  <div class="card">
+    <h3 style="font-weight:bold; margin-bottom:10px;">📊 외부 엑셀 데이터 추가</h3>
+    <p style="color:var(--sub); font-size:0.8rem; margin-bottom:12px;">새로운 거래처 리스트(Excel) 파일이 있다면 모바일로 직접 업로드하여 통합 검색할 수 있습니다.</p>
+    <input type="file" id="excelFile" accept=".xlsx, .xls" style="display:none;" onchange="importExcel(this)">
+    <button class="btn btn-primary" onclick="document.getElementById('excelFile').click()">📁 엑셀 파일 가져오기</button>
+  </div>
+
+  <div class="card" style="margin-top:15px;">
+    <h3 style="font-weight:bold; margin-bottom:10px; color:var(--danger);">⚠️ 데이터 초기화</h3>
+    <p style="color:var(--sub); font-size:0.8rem; margin-bottom:12px;">기기 로컬 저장소에 기록된 모든 방문일지와 추가된 업체 데이터를 깨끗이 삭제합니다.</p>
+    <button class="btn btn-danger" onclick="confirmReset()">전체 데이터 초기화</button>
+  </div>
+</div>
+
+<!-- 하단 탭 바 -->
+<div class="nav-bar">
+  <div class="nav-item active" onclick="switchTab('companies', this)">
+    <span>🏢</span>개개별찾기
+  </div>
+  <div class="nav-item" onclick="switchTab('logs', this)">
+    <span>📝</span>영업일지
+  </div>
+  <div class="nav-item" onclick="switchTab('settings', this)">
+    <span>⚙️</span>설정/설정
+  </div>
+</div>
+
+<!-- 방문일지 작성 모달 -->
+<div id="logModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-title" id="modalTargetCompany">방문 일지 작성</div>
+    <div class="form-group">
+      <label class="form-label">방문일자</label>
+      <input type="date" id="formLogDate" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">상담 및 진행 내용</label>
+      <textarea id="formLogMemo" class="form-control" rows="4" placeholder="상담 내역, 미팅 결과, 다음 방문 계획 등 입력..."></textarea>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveLog()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">알림 메시지</div>
+
+<script>
+// 상태 관리 변수
+let visitJournals = JSON.parse(localStorage.getItem('visitJournals') || '[]');
+let extraSources = JSON.parse(localStorage.getItem('extraSources') || '[]');
+let selectedCompanyForLog = '';
+
+// 초기화 실행
+document.addEventListener('DOMContentLoaded', () => {
+  setupDate();
+  initFilters();
+  renderCompanies();
+  renderLogs();
+});
+
+// 날짜 세팅
+function setupDate() {
+  const today = new Date();
+  const options = { weekday: 'long', month: 'long', day: 'numeric' };
+  document.getElementById('todayStr').textContent = today.toLocaleDateString('ko-KR', options);
+  document.getElementById('formLogDate').value = today.toISOString().split('T')[0];
+}
+
+// 구역 필터링 옵션 동적 채우기
+function initFilters() {
+  const zoneSelect = document.getElementById('zoneFilter');
+  const zones = [...new Set(COMPANIES.map(c => c.구역))].filter(Boolean);
+  zones.forEach(zone => {
+    const opt = document.createElement('option');
+    opt.value = zone;
+    opt.textContent = zone;
+    zoneSelect.appendChild(opt);
+  });
+
+  // 이벤트 리스너 바인딩
+  document.getElementById('searchInput').addEventListener('input', renderCompanies);
+  document.getElementById('zoneFilter').addEventListener('change', renderCompanies);
+  document.getElementById('sizeFilter').addEventListener('change', renderCompanies);
+}
+
+// 탭 전환
+function switchTab(screenId, element) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  
+  document.getElementById(`screen-${screenId}`).classList.add('active');
+  element.classList.add('active');
+}
+
+// 통합 업체 리스트 렌더링 (기초 데이터 + 엑셀 추가 데이터)
+function renderCompanies() {
+  const container = document.getElementById('companyList');
+  const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+  const selectedZone = document.getElementById('zoneFilter').value;
+  const selectedSize = document.getElementById('sizeFilter').value;
+
+  // 전체 통합 리스트 구성
+  let allCombined = [...COMPANIES];
+  extraSources.forEach(src => {
+    if (src.active && Array.isArray(src.data)) {
+      allCombined = allCombined.concat(src.data);
+    }
+  });
+
+  // 필터링 처리
+  const filtered = allCombined.filter(item => {
+    const matchZone = !selectedZone || item.구역 === selectedZone;
+    const matchSize = !selectedSize || item.기업규모 === selectedSize;
+    const matchKeyword = !keyword || 
+      (item.기업명 && item.기업명.toLowerCase().includes(keyword)) ||
+      (item.대표자이름 && item.대표자이름.toLowerCase().includes(keyword)) ||
+      (item.통합주소 && item.통합주소.toLowerCase().includes(keyword));
+    return matchZone && matchSize && matchKeyword;
+  });
+
+  document.getElementById('totalCount').textContent = `${filtered.length.toLocaleString()}개`;
+  container.innerHTML = '';
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--sub);">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  // 상위 100개만 먼저 그려 성능 확보 (모바일 스크롤 지연 방지)
+  const displayItems = filtered.slice(0, 100);
+  displayItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    
+    const telLink = item.본사전화번호 ? `tel:${item.본사전화번호.replace(/\s/g, '')}` : '#';
+    const telStyle = item.본사전화번호 ? '' : 'style="opacity:0.4; pointer-events:none;"';
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="company-title">${item.기업명 || '이름 없음'}</div>
+        <span class="badge ${item.기업규모 === '중기업' ? 'badge-blue' : 'badge-gray'}">${item.기업규모 || '일반'}</span>
+      </div>
+      <div style="font-size:0.8rem; color:var(--blue); font-weight:600; margin-bottom:4px;">📍 ${item.구역 || '지정 구역 없음'}</div>
+      <div class="info-grid">
+        <div>👤 대표: ${item.대표자이름 || '미등록'} (${item.대표자나이 || '-'})</div>
+        <div>👥 임직원: ${item.최신근로자수 || '-'}명</div>
+        <div>📊 매출: ${item.매출 ? Number(item.매출).toLocaleString() + '백만' : '-'}</div>
+        <div>📈 이익: ${item.순이익 ? Number(item.순이익).toLocaleString() + '백만' : '-'}</div>
+      </div>
+      <div class="address-text">${item.통합주소 || '주소 정보가 없습니다.'}</div>
+      <div class="btn-group">
+        <a href="${telLink}" class="btn btn-outline" ${telStyle}>📞 전화</a>
+        <button class="btn btn-primary" onclick="openLogModal('${item.기업명}')">📝 일지작성</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// 일지 작성 모달 열기
+function openLogModal(companyName) {
+  selectedCompanyForLog = companyName;
+  document.getElementById('modalTargetCompany').textContent = `📝 [${companyName}] 일지 기록`;
+  document.getElementById('formLogMemo').value = '';
+  document.getElementById('logModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('logModal').style.display = 'none';
+}
+
+// 일지 저장 완료
+function saveLog() {
+  const date = document.getElementById('formLogDate').value;
+  const memo = document.getElementById('formLogMemo').value.trim();
+
+  if (!memo) {
+    toast('⚠️ 진행 내용을 입력해 주세요.');
+    return;
+  }
+
+  const newLog = {
+    id: Date.now(),
+    company: selectedCompanyForLog,
+    date: date,
+    memo: memo
+  };
+
+  visitJournals.unshift(newLog);
+  localStorage.setItem('visitJournals', JSON.stringify(visitJournals));
+  
+  toast('✅ 일지가 정상 저장되었습니다.');
+  closeModal();
+  renderLogs();
+}
+
+// 영업일지 리스트 출력
+function renderLogs() {
+  const container = document.getElementById('logList');
+  container.innerHTML = '';
+
+  if (visitJournals.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--sub);">기록된 영업일지가 없습니다.</div>';
+    return;
+  }
+
+  visitJournals.forEach(log => {
+    const div = document.createElement('div');
+    div.className = 'card log-item';
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <span class="log-date">📅 ${log.date}</span>
+        <button style="border:none; background:none; color:var(--danger); font-size:0.8rem; cursor:pointer;" onclick="deleteLog(${log.id})">삭제</button>
+      </div>
+      <div class="log-company">${log.company}</div>
+      <div class="log-memo">${log.memo.replace(/\n/g, '<br>')}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// 일지 삭제
+function deleteLog(id) {
+  if(confirm('이 일지를 삭제하시겠습니까?')) {
+    visitJournals = visitJournals.filter(l => l.id !== id);
+    localStorage.setItem('visitJournals', JSON.stringify(visitJournals));
+    renderLogs();
+    toast('일지가 삭제되었습니다.');
+  }
+}
+
+// 토스트 안내창
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 2500);
+}
+
+// 엑셀 내보내기 기능
+function exportLogsToExcel() {
+  if (visitJournals.length === 0) {
+    toast('내보낼 일지 데이터가 없습니다.');
+    return;
+  }
+  
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('방문영업일지');
+  
+  worksheet.columns = [
+    { header: '날짜', key: 'date', width: 15 },
+    { header: '업체명', key: 'company', width: 25 },
+    { header: '상담 및 미팅 내용', key: 'memo', width: 50 }
+  ];
+  
+  visitJournals.forEach(log => worksheet.addRow(log));
+  
+  workbook.xlsx.writeBuffer().then(buffer => {
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `방문영업일지_내보내기_${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.click();
+    toast('📥 엑셀 파일이 다운로드되었습니다.');
+  });
+}
+
+// 외부 엑셀 파일 읽기 및 가져오기 (ExcelJS 활용)
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const workbook = new ExcelJS.Workbook();
+    const arrayBuffer = e.target.result;
+    
+    workbook.xlsx.load(arrayBuffer).then(function() {
+      const worksheet = workbook.getWorksheet(1);
+      const importedData = [];
+      
+      // 행별 루프 돌며 데이터 바인딩 규칙 처리
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { // 1행 헤더 제외
+          importedData.push({
+            구역: row.getCell(2).value || '외부 구역',
+            기업명: row.getCell(3).value,
+            기업규모: row.getCell(4).value || '소상공인',
+            최신근로자수: row.getCell(6).value || '0',
+            통합주소: row.getCell(8).value || '',
+            본사전화번호: row.getCell(9).value || '',
+            대표자이름: row.getCell(11).value || ''
+          });
+        }
+      });
+      
+      if(importedData.length > 0) {
+        extraSources.push({
+          id: Math.random().toString(36).slice(2,7),
+          name: file.name,
+          data: importedData,
+          active: true
+        });
+        localStorage.setItem('extraSources', JSON.stringify(extraSources));
+        toast(`✅ 엑셀 데이터 ${importedData.length}건 추가 완료!`);
+        renderCompanies();
+      }
+    }).catch(err => {
+      toast('엑셀 파일을 읽는 도중 오류가 발생했습니다.');
+      console.error(err);
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// 전체 데이터 초기화
+function confirmReset() {
+  if (confirm('⚠️ 정말로 초기화하시겠습니까? 저장된 일지와 추가 데이터가 모두 영구 삭제됩니다.')) {
+    localStorage.clear();
+    visitJournals = [];
+    extraSources = [];
+    toast('초기화가 완료되었습니다.');
+    setTimeout(() => location.reload(), 1000);
+  }
+}
+</script>
+
+<script>
+// PWA 서비스 워커 안전하게 등록
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw-mobile.js')
+      .then(reg => console.log('ServiceWorker registered:', reg.scope))
+      .catch(err => console.error('ServiceWorker registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
